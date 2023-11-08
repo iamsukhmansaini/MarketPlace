@@ -1,70 +1,76 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
-const cors = require('cors');
+const coars = require('cors');
 const mongoose = require('mongoose');
-// Routers
-const todoRoutes = express.Router();
-const Todo = require('./model/todos.model');
-
+const Product = require('./product.model');
+const port = process.env.PORT || 8081;
 
 app.use(cors());
 app.use(bodyParser.json());
 
-mongoose.connect('mongodb+srv://ssaini:<password>@cluster0.lwnw1ha.mongodb.net/?retryWrites=true&w=majority',
-{useNewUrlParser:true});
+require('./database'); // Import the database connection setup
 
-const connection = mongoose.connection;
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to DressStore application.' });
+});
 
-connection.once('open',()=>{
-    console.log("DB connected......")
-})
+// Define routes and controllers for products
+const productRoutes = express.Router();
 
-// YOU WRITE YOUR CODE HERE
-     todoRoutes.route('/').get((req, res)=>{
-      Todo.find()
-      .then(todos=>res.status(200).json(todos))
-        .catch(err=>res.status(400).json({"error": err}))
-     });
+// Get all products
+productRoutes.route('/').get((req, res) => {
+  Product.find()
+    .then(products => res.status(200).json(products))
+    .catch(err => res.status(400).json({ error: err }));
+});
 
-     todoRoutes.route('/:id').get((req,res)=>{
-       Todo.findById(req.params.id)
-      .then(todos=>res.status(200).json(todos))
-        .catch(err=>res.status(400).json({"error": err}))
-     })
+// Get product by ID
+productRoutes.route('/:id').get((req, res) => {
+  Product.findById(req.params.id)
+    .then(product => res.status(200).json(product))
+    .catch(err => res.status(400).json({ error: err }));
+});
 
-     todoRoutes.route('/add').post((req,res)=>{
-        
-        let todo = new Todo(req.body)
-          todo.save()
-            .then(todos=>res.status(200).json(todos))
-            .catch(err=>res.status(400).json({"error": err}))
+// Add new product
+productRoutes.route('/').post((req, res) => {
+  let product = new Product(req.body);
+  product.save()
+    .then(product => res.status(200).json(product))
+    .catch(err => res.status(400).json({ error: err }));
+});
 
-     });
+// Update product by ID
+productRoutes.route('/:id').put((req, res) => {
+  Product.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    .then(product => res.status(200).json(product))
+    .catch(err => res.status(400).json({ error: err }));
+});
 
-     
-     todoRoutes.route('/update/:id').post((req,res)=>{
-        Todo.findById(req.params.id)
-        .then(todos=>{
-            //Update the object with new data
-            todos.description = req.body.description;
-            todos.responsible = req.body.responsible;
-            todos.priority = req.body.priority;
-            todos.isCompleted = req.body.isCompleted;
+// Remove product by ID
+productRoutes.route('/:id').delete((req, res) => {
+  Product.findByIdAndRemove(req.params.id)
+    .then(() => res.status(200).json({ message: 'Product removed successfully' }))
+    .catch(err => res.status(400).json({ error: err }));
+});
 
-            //Save new Data
+// Remove all products
+productRoutes.route('/').delete((req, res) => {
+  Product.deleteMany({})
+    .then(() => res.status(200).json({ message: 'All products removed successfully' }))
+    .catch(err => res.status(400).json({ error: err }));
+});
 
-            todos.save()
-            .then(todos=>res.status(200).json(todos))
-            .catch(err=>res.status(400).json({"error": err}))
+// Find all products which name contains 'kw'
+productRoutes.route('/').get((req, res) => {
+  const keyword = req.query.name;
+  Product.find({ name: { $regex: keyword, $options: 'i' } })
+    .then(products => res.status(200).json(products))
+    .catch(err => res.status(400).json({ error: err }));
+});
 
-            res.status(200).json(todos)
-        })
-          .catch(err=>res.status(400).json({"error": err}))
-       });
+app.use('/api/products', productRoutes);
 
-app.use(todoRoutes);
-
-app.listen(8081,()=>{
-    console.log("Server is running on 8081....");
+app.listen(port, () => {
+  console.log(`Marketplace server is running on port ${port}`);
 });
